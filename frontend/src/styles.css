@@ -1,0 +1,144 @@
+:root {
+  color: #17201a;
+  background: #f4f1e8;
+  font-family:
+    "Aptos",
+    "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-shell {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: 260px 1fr;
+}
+
+.sidebar {
+  border-right: 1px solid #d7d1c4;
+  background: #ede7da;
+  padding: 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.brand-mark {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid #1f3328;
+  background: #1f3328;
+  color: #f5f0e6;
+  font-weight: 700;
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.brand p {
+  margin: 2px 0 0;
+  color: #667065;
+  font-size: 13px;
+}
+
+.nav-list {
+  display: grid;
+  gap: 8px;
+}
+
+.nav-link {
+  border: 1px solid transparent;
+  padding: 10px 12px;
+  color: #485249;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  border-color: #bdc9b4;
+  background: #f7f4ee;
+  color: #162217;
+}
+
+.workspace {
+  padding: 32px;
+}
+
+.page {
+  max-width: 980px;
+}
+
+.page-header {
+  border-bottom: 1px solid #d7d1c4;
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: #6d755f;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.page h2 {
+  margin: 0;
+  font-size: 30px;
+}
+
+.empty-panel {
+  border: 1px solid #d7d1c4;
+  background: #fbfaf6;
+  padding: 20px;
+}
+
+.empty-panel p {
+  margin: 0;
+  color: #485249;
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid #d7d1c4;
+  }
+
+  .nav-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .nav-link {
+    text-align: center;
+  }
+
+  .workspace {
+    padding: 20px;
+  }
+}

@@ -13,6 +13,7 @@ from app.models.conversation import Conversation, ConversationMessage
 from app.models.user import User
 from app.repositories.conversation_repo import ConversationRepository
 from app.repositories.memory_repo import MemoryRepository
+from app.repositories.pattern_repo import PatternRepository
 from app.repositories.user_repo import UserRepository
 from app.schemas.chat_schema import ChatRequest, ChatResponse, SimpleChatResponse
 from app.services.llm_service import LLMService
@@ -130,18 +131,38 @@ def get_memory_service(
     return service
 
 
+def get_pattern_repo(
+    request: Request,
+    client: Annotated[MongoClient, Depends(get_mongo_client)],
+) -> PatternRepository | None:
+    if getattr(request.app.state, "test_pattern_repo", None) is not None:
+        return request.app.state.test_pattern_repo
+    if getattr(request.app.state, "test_memory_repo", None) is not None:
+        return None
+    if getattr(request.app.state, "settings", None) is None:
+        return None
+    db = client[request.app.state.settings.mongodb_database]
+    return PatternRepository(db.patterns)
+
+
 def get_growth_agent_graph(
     request: Request,
     llm_service: Annotated[LLMService, Depends(get_llm_service)],
     memory_service: Annotated[MemoryService, Depends(get_memory_service)],
+    pattern_repo: Annotated[PatternRepository | None, Depends(get_pattern_repo)],
 ) -> GrowthAgentGraph:
     graph = getattr(request.app.state, "growth_agent_graph", None)
     if (
         graph is None
         or getattr(graph, "llm_service", None) is not llm_service
         or getattr(graph, "memory_service", None) is not memory_service
+        or getattr(graph, "pattern_repo", None) is not pattern_repo
     ):
-        graph = GrowthAgentGraph(llm_service=llm_service, memory_service=memory_service)
+        graph = GrowthAgentGraph(
+            llm_service=llm_service,
+            memory_service=memory_service,
+            pattern_repo=pattern_repo,
+        )
         request.app.state.growth_agent_graph = graph
     return graph
 
@@ -190,7 +211,7 @@ async def chat(
         assistant_response=updated_state.assistant_response or "",
         strategy=updated_state.response_strategy or "emotional_support",
         retrieved_memories=updated_state.retrieved_memories,
-        detected_patterns=[],
+        detected_patterns=updated_state.detected_patterns,
         generated_task=None,
     )
 

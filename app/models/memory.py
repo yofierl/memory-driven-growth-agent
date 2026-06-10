@@ -18,5 +18,9 @@ class Memory(BaseModel):
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     source: Literal["conversation", "checkin", "reflection"] = "conversation"
     embedding_id: str | None = None
+    frequency: int = Field(default=1, ge=1)
+    last_seen_at: datetime | None = None
+    is_deleted: bool = False
+    deleted_at: datetime | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

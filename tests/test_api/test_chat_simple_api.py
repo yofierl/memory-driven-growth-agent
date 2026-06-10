@@ -4,7 +4,13 @@ from app.main import create_app
 
 
 class InMemoryLLMService:
-    def generate_reply(self, *, user_message: str, conversation_messages: list[dict]) -> str:
+    def generate_reply(
+        self,
+        *,
+        user_message: str,
+        conversation_messages: list[dict],
+        system_prompt: str | None = None,
+    ) -> str:
         assert user_message == "我今天又学不进去。"
         return "听起来你现在有点被压力卡住了，我们先把这件事说具体一点。"
 

@@ -26,6 +26,7 @@ class LLMService:
         *,
         user_message: str,
         conversation_messages: Sequence[dict],
+        system_prompt: str | None = None,
     ) -> str:
         if not self.settings.llm_api_key or not self.settings.llm_model:
             return f"我听到你在说：{user_message}。如果你愿意，可以继续具体说说刚刚发生了什么。"
@@ -33,7 +34,8 @@ class LLMService:
             messages=[
                 {
                     "role": "system",
-                    "content": (
+                    "content": system_prompt
+                    or (
                         "You are a calm growth-coaching assistant. "
                         "Give one concise supportive reply."
                     ),
@@ -57,9 +59,7 @@ class LLMService:
         try:
             return json.loads(self._extract_json(response_text))
         except json.JSONDecodeError as exc:
-            raise LLMServiceError(
-                "LLM returned invalid JSON for structured extraction"
-            ) from exc
+            raise LLMServiceError("LLM returned invalid JSON for structured extraction") from exc
 
     def _chat_completion(
         self,

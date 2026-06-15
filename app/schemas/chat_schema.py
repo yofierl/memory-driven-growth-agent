@@ -15,6 +15,9 @@ class ChatResponse(BaseModel):
     conversation_id: str
     assistant_response: str
     strategy: str
+    risk_level: str = "none"
+    risk_reason: str | None = None
+    safety_handled: bool = False
     retrieved_memories: list[dict[str, Any]] = Field(default_factory=list)
     detected_patterns: list[dict[str, Any]] = Field(default_factory=list)
     generated_task: dict[str, Any] | None = None

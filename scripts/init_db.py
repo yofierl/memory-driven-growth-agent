@@ -63,6 +63,7 @@ def init_mongo() -> None:
     db.tasks.create_index([("user_id", ASCENDING), ("status", ASCENDING)])
     db.tasks.create_index([("task_id", ASCENDING)], unique=True)
     db.methods.create_index([("method_id", ASCENDING)], unique=True)
+    db.safety_logs.create_index([("user_id", ASCENDING), ("created_at", -1)])
 
     now = datetime.now(UTC)
     for method in METHODS:

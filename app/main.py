@@ -18,8 +18,13 @@ logger = get_logger(__name__)
 def check_mongodb(settings: Settings) -> dict[str, str]:
     client = MongoClient(settings.mongodb_uri, serverSelectionTimeoutMS=1000)
     client.admin.command("ping")
+    db = client[settings.mongodb_database]
+    safety_logs_exists = "safety_logs" in db.list_collection_names()
     client.close()
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "safety_logs_collection_exists": str(safety_logs_exists).lower(),
+    }
 
 
 def check_milvus(settings: Settings) -> dict[str, str]:

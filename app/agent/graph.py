@@ -10,6 +10,8 @@ from app.agent.nodes.memory_update import MemoryUpdateNode
 from app.agent.nodes.pattern_discovery import PatternDiscoveryNode
 from app.agent.nodes.response_generation import ResponseGenerationNode
 from app.agent.nodes.response_planner import ResponsePlannerNode
+from app.agent.nodes.risk_detection import RiskDetectionNode
+from app.agent.nodes.safety_response import SafetyResponseNode
 from app.agent.nodes.task_generation import TaskGenerationNode
 from app.agent.state import GrowthAgentState
 from app.services.intervention_service import InterventionService
@@ -25,13 +27,25 @@ class GrowthAgentGraph:
         pattern_repo=None,
         method_repo=None,
         task_repo=None,
+        safety_log_repo=None,
     ) -> None:
         self.llm_service = llm_service
         self.memory_service = memory_service
         self.pattern_repo = pattern_repo
         self.method_repo = method_repo
         self.task_repo = task_repo
-        self.memory_retrieval_node = MemoryRetrievalNode(memory_service=memory_service)
+        self.safety_log_repo = safety_log_repo
+        self.risk_detection_node = RiskDetectionNode(llm_service=llm_service)
+        self.safety_response_node = SafetyResponseNode(safety_log_repo=safety_log_repo)
+        task_service = (
+            TaskService(llm_service=llm_service, task_repo=task_repo)
+            if task_repo is not None
+            else None
+        )
+        self.memory_retrieval_node = MemoryRetrievalNode(
+            memory_service=memory_service,
+            task_service=task_service,
+        )
         self.gap_detection_node = GapDetectionNode(llm_service=llm_service)
         self.response_planner_node = ResponsePlannerNode(llm_service=llm_service)
         self.response_generation_node = ResponseGenerationNode(llm_service=llm_service)
@@ -52,7 +66,6 @@ class GrowthAgentGraph:
                 method_repo=method_repo,
                 task_repo=task_repo,
             )
-            task_service = TaskService(llm_service=llm_service, task_repo=task_repo)
             self.intervention_routing_node = InterventionRoutingNode(
                 llm_service=llm_service,
                 memory_service=memory_service,
@@ -63,6 +76,12 @@ class GrowthAgentGraph:
             self.intervention_routing_node = None
             self.task_generation_node = None
         self.graph = self._build_graph()
+
+    @staticmethod
+    def _route_after_risk_detection(state: GrowthAgentState) -> str:
+        if state.risk_level == "high":
+            return "safety_response"
+        return "memory_retrieval"
 
     @staticmethod
     def _route_after_gap_detection(state: GrowthAgentState) -> str:
@@ -96,6 +115,8 @@ class GrowthAgentGraph:
 
     def _build_graph(self):
         workflow = StateGraph(GrowthAgentState)
+        workflow.add_node("risk_detection", self.risk_detection_node.run)
+        workflow.add_node("safety_response", self.safety_response_node.run)
         workflow.add_node("memory_retrieval", self.memory_retrieval_node.run)
         workflow.add_node("gap_detection", self.gap_detection_node.run)
         workflow.add_node("response_planner", self.response_planner_node.run)
@@ -103,7 +124,16 @@ class GrowthAgentGraph:
         workflow.add_node("memory_extraction", self.memory_extraction_node.run)
         workflow.add_node("memory_update", self.memory_update_node.run)
 
-        workflow.add_edge(START, "memory_retrieval")
+        workflow.add_edge(START, "risk_detection")
+        workflow.add_conditional_edges(
+            "risk_detection",
+            self._route_after_risk_detection,
+            {
+                "safety_response": "safety_response",
+                "memory_retrieval": "memory_retrieval",
+            },
+        )
+        workflow.add_edge("safety_response", END)
         workflow.add_edge("memory_retrieval", "gap_detection")
         workflow.add_conditional_edges(
             "gap_detection",

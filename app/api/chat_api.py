@@ -15,6 +15,7 @@ from app.repositories.conversation_repo import ConversationRepository
 from app.repositories.memory_repo import MemoryRepository
 from app.repositories.method_repo import MethodRepository
 from app.repositories.pattern_repo import PatternRepository
+from app.repositories.safety_log_repo import SafetyLogRepository
 from app.repositories.task_repo import TaskRepository
 from app.repositories.user_repo import UserRepository
 from app.schemas.chat_schema import ChatRequest, ChatResponse, SimpleChatResponse
@@ -139,7 +140,10 @@ def get_pattern_repo(
 ) -> PatternRepository | None:
     if getattr(request.app.state, "test_pattern_repo", None) is not None:
         return request.app.state.test_pattern_repo
-    if getattr(request.app.state, "test_memory_repo", None) is not None:
+    if (
+        getattr(request.app.state, "test_memory_repo", None) is not None
+        or getattr(request.app.state, "test_memory_service", None) is not None
+    ):
         return None
     if getattr(request.app.state, "settings", None) is None:
         return None
@@ -153,7 +157,10 @@ def get_method_repo(
 ) -> MethodRepository | None:
     if getattr(request.app.state, "test_method_repo", None) is not None:
         return request.app.state.test_method_repo
-    if getattr(request.app.state, "test_memory_repo", None) is not None:
+    if (
+        getattr(request.app.state, "test_memory_repo", None) is not None
+        or getattr(request.app.state, "test_memory_service", None) is not None
+    ):
         return None
     if getattr(request.app.state, "settings", None) is None:
         return None
@@ -167,12 +174,31 @@ def get_task_repo(
 ) -> TaskRepository | None:
     if getattr(request.app.state, "test_task_repo", None) is not None:
         return request.app.state.test_task_repo
-    if getattr(request.app.state, "test_memory_repo", None) is not None:
+    if (
+        getattr(request.app.state, "test_memory_repo", None) is not None
+        or getattr(request.app.state, "test_memory_service", None) is not None
+    ):
         return None
     if getattr(request.app.state, "settings", None) is None:
         return None
     db = client[request.app.state.settings.mongodb_database]
     return TaskRepository(db.tasks)
+
+
+def get_safety_log_repo(
+    request: Request,
+    client: Annotated[MongoClient, Depends(get_mongo_client)],
+) -> SafetyLogRepository | None:
+    if getattr(request.app.state, "test_safety_log_repo", None) is not None:
+        return request.app.state.test_safety_log_repo
+    if getattr(request.app.state, "test_memory_repo", None) is not None:
+        return None
+    if getattr(request.app.state, "test_memory_service", None) is not None:
+        return None
+    if getattr(request.app.state, "settings", None) is None:
+        return None
+    db = client[request.app.state.settings.mongodb_database]
+    return SafetyLogRepository(db.safety_logs)
 
 
 def get_growth_agent_graph(
@@ -182,6 +208,7 @@ def get_growth_agent_graph(
     pattern_repo: Annotated[PatternRepository | None, Depends(get_pattern_repo)],
     method_repo: Annotated[MethodRepository | None, Depends(get_method_repo)],
     task_repo: Annotated[TaskRepository | None, Depends(get_task_repo)],
+    safety_log_repo: Annotated[SafetyLogRepository | None, Depends(get_safety_log_repo)],
 ) -> GrowthAgentGraph:
     graph = getattr(request.app.state, "growth_agent_graph", None)
     if (
@@ -191,6 +218,7 @@ def get_growth_agent_graph(
         or getattr(graph, "pattern_repo", None) is not pattern_repo
         or getattr(graph, "method_repo", None) is not method_repo
         or getattr(graph, "task_repo", None) is not task_repo
+        or getattr(graph, "safety_log_repo", None) is not safety_log_repo
     ):
         graph = GrowthAgentGraph(
             llm_service=llm_service,
@@ -198,6 +226,7 @@ def get_growth_agent_graph(
             pattern_repo=pattern_repo,
             method_repo=method_repo,
             task_repo=task_repo,
+            safety_log_repo=safety_log_repo,
         )
         request.app.state.growth_agent_graph = graph
     return graph
@@ -245,7 +274,12 @@ async def chat(
     return ChatResponse(
         conversation_id=conversation_id,
         assistant_response=updated_state.assistant_response or "",
-        strategy=updated_state.response_strategy or "emotional_support",
+        strategy="safety_response"
+        if updated_state.safety_handled
+        else updated_state.response_strategy or "emotional_support",
+        risk_level=updated_state.risk_level,
+        risk_reason=updated_state.risk_reason,
+        safety_handled=updated_state.safety_handled,
         retrieved_memories=updated_state.retrieved_memories,
         detected_patterns=updated_state.detected_patterns,
         generated_task=updated_state.generated_task,

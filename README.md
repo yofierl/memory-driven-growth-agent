@@ -50,7 +50,7 @@ docker compose up -d
 python .\scripts\init_db.py
 ```
 
-5. Start the backend after implementation exists:
+5. Start the backend:
 
 ```powershell
 uvicorn app.main:app --reload
@@ -85,6 +85,45 @@ Important variables:
 - `TECH DESIGN V1.md`: architecture, data model, workflow, testing, and engineering baseline
 - `AGENTS.md`: project-specific implementation rules for coding agents
 
+## Formal Chat API
+
+Use `POST /api/chat` for the complete MVP graph:
+
+```json
+{
+  "user_id": "demo-user",
+  "message": "I wanted to study, but I watched short videos for two hours instead."
+}
+```
+
+High-risk input is routed first through `RiskDetectionNode`. If the level is
+`high`, the graph returns a safety response and stops before memory retrieval,
+memory update, pattern discovery, intervention routing, or task generation.
+
+`POST /api/chat/simple` is retained only as a development smoke-test endpoint.
+
+## Memory Governance
+
+Memory mutation goes through `MemoryService`:
+
+- `PATCH /api/memories/{memory_id}` updates structured memory fields and refreshes the vector index through the provider.
+- `DELETE /api/memories/{memory_id}` soft-deletes the MongoDB memory and removes the related vector embedding.
+
+MongoDB remains the source of truth. Milvus is only the semantic retrieval index.
+
+## Demo Data
+
+- `data/demo/phase6_demo_inputs.json`: demo inputs for learning procrastination, high sensitivity, long-term confusion, and high-risk safety flow.
+- `data/prompt_tests/mvp_prompt_test_set.jsonl`: 30 labeled prompt test cases covering anxiety, procrastination, high sensitivity, rumination, confusion, small talk, and high-risk input.
+
+## Safety Boundary
+
+This product supports self-growth reflection and daily planning. It is not a
+medical diagnosis tool, psychotherapy service, crisis intervention service, or
+emergency support tool. If a user may be in immediate danger, the system should
+encourage contacting local emergency services, a trusted nearby person, or
+qualified crisis support.
+
 ## MVP Acceptance
 
 Before claiming the MVP works, verify the acceptance criteria in `AGENTS.md`, especially:
@@ -93,3 +132,13 @@ Before claiming the MVP works, verify the acceptance criteria in `AGENTS.md`, es
 - 1 high-risk input enters `SafetyResponseNode` and stops normal coaching.
 - 1 candidate pattern cites at least 3 `evidence_memory_ids`.
 - Memory edit/delete prevents that memory from being used in retrieval, pattern discovery, and profile updates.
+
+Useful local checks:
+
+```powershell
+python -m pytest
+python -m ruff check .
+python -m ruff format --check .
+cd frontend
+npm run build
+```

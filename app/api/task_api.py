@@ -23,11 +23,15 @@ def get_task_repo(
     return TaskRepository(db.tasks)
 
 
-def get_task_service(request: Request, task_repo: Annotated[TaskRepository, Depends(get_task_repo)]) -> TaskService:
+def get_task_service(
+    request: Request, task_repo: Annotated[TaskRepository, Depends(get_task_repo)]
+) -> TaskService:
     override = getattr(request.app.state, "test_task_service", None)
     if override is not None:
         return override
-    llm_service = getattr(request.app.state, "test_llm_service", None) or getattr(request.app.state, "llm_service", None)
+    llm_service = getattr(request.app.state, "test_llm_service", None) or getattr(
+        request.app.state, "llm_service", None
+    )
     return TaskService(llm_service=llm_service, task_repo=task_repo)
 
 
@@ -58,5 +62,7 @@ async def update_task_status(
     task = task_repo.get_by_task_id(task_id)
     if task is None or task.user_id != user_id:
         raise TaskNotFoundError(f"Task not found: {task_id}")
-    task_service.update_task_status(task_id=task_id, status=request.status, feedback=request.feedback)
+    task_service.update_task_status(
+        task_id=task_id, status=request.status, feedback=request.feedback
+    )
     return MutationResponse(success=True)

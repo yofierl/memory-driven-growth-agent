@@ -3,21 +3,34 @@ from __future__ import annotations
 from langgraph.graph import END, START, StateGraph
 
 from app.agent.nodes.gap_detection import GapDetectionNode
+from app.agent.nodes.intervention_routing import InterventionRoutingNode
 from app.agent.nodes.memory_extraction import MemoryExtractionNode
 from app.agent.nodes.memory_retrieval import MemoryRetrievalNode
 from app.agent.nodes.memory_update import MemoryUpdateNode
 from app.agent.nodes.pattern_discovery import PatternDiscoveryNode
 from app.agent.nodes.response_generation import ResponseGenerationNode
 from app.agent.nodes.response_planner import ResponsePlannerNode
+from app.agent.nodes.task_generation import TaskGenerationNode
 from app.agent.state import GrowthAgentState
+from app.services.intervention_service import InterventionService
 from app.services.pattern_service import PatternService
+from app.services.task_service import TaskService
 
 
 class GrowthAgentGraph:
-    def __init__(self, llm_service, memory_service, pattern_repo=None) -> None:
+    def __init__(
+        self,
+        llm_service,
+        memory_service,
+        pattern_repo=None,
+        method_repo=None,
+        task_repo=None,
+    ) -> None:
         self.llm_service = llm_service
         self.memory_service = memory_service
         self.pattern_repo = pattern_repo
+        self.method_repo = method_repo
+        self.task_repo = task_repo
         self.memory_retrieval_node = MemoryRetrievalNode(memory_service=memory_service)
         self.gap_detection_node = GapDetectionNode(llm_service=llm_service)
         self.response_planner_node = ResponsePlannerNode(llm_service=llm_service)
@@ -33,6 +46,22 @@ class GrowthAgentGraph:
             )
         else:
             self.pattern_discovery_node = None
+        if pattern_repo is not None and method_repo is not None and task_repo is not None:
+            intervention_service = InterventionService(
+                pattern_repo=pattern_repo,
+                method_repo=method_repo,
+                task_repo=task_repo,
+            )
+            task_service = TaskService(llm_service=llm_service, task_repo=task_repo)
+            self.intervention_routing_node = InterventionRoutingNode(
+                llm_service=llm_service,
+                memory_service=memory_service,
+                intervention_service=intervention_service,
+            )
+            self.task_generation_node = TaskGenerationNode(task_service=task_service)
+        else:
+            self.intervention_routing_node = None
+            self.task_generation_node = None
         self.graph = self._build_graph()
 
     @staticmethod
@@ -46,11 +75,24 @@ class GrowthAgentGraph:
             return "end"
         return "pattern_discovery"
 
-    @staticmethod
-    def _route_after_pattern_discovery(state: GrowthAgentState) -> str:
+    def _route_after_pattern_discovery(self, state: GrowthAgentState) -> str:
         if state.pattern_confirmation_required:
             return "wait_confirmation"
-        return "end"
+        if self.pattern_repo is None:
+            return "end"
+        confirmed = self.pattern_repo.list_by_user_id(
+            user_id=state.user_id,
+            statuses=["confirmed"],
+        )
+        if not confirmed:
+            return "end"
+        return "intervention_routing"
+
+    @staticmethod
+    def _route_after_intervention(state: GrowthAgentState) -> str:
+        if state.recommended_method is None:
+            return "end"
+        return "task_generation"
 
     def _build_graph(self):
         workflow = StateGraph(GrowthAgentState)
@@ -71,7 +113,6 @@ class GrowthAgentGraph:
                 "normal": "response_planner",
             },
         )
-
         workflow.add_edge("response_planner", "response_generation")
         workflow.add_edge("response_generation", "memory_extraction")
         workflow.add_edge("memory_extraction", "memory_update")
@@ -86,14 +127,36 @@ class GrowthAgentGraph:
                     "end": END,
                 },
             )
-            workflow.add_conditional_edges(
-                "pattern_discovery",
-                self._route_after_pattern_discovery,
-                {
-                    "wait_confirmation": END,
-                    "end": END,
-                },
-            )
+            if self.intervention_routing_node is not None and self.task_generation_node is not None:
+                workflow.add_node("intervention_routing", self.intervention_routing_node.run)
+                workflow.add_node("task_generation", self.task_generation_node.run)
+                workflow.add_conditional_edges(
+                    "pattern_discovery",
+                    self._route_after_pattern_discovery,
+                    {
+                        "wait_confirmation": END,
+                        "intervention_routing": "intervention_routing",
+                        "end": END,
+                    },
+                )
+                workflow.add_conditional_edges(
+                    "intervention_routing",
+                    self._route_after_intervention,
+                    {
+                        "task_generation": "task_generation",
+                        "end": END,
+                    },
+                )
+                workflow.add_edge("task_generation", END)
+            else:
+                workflow.add_conditional_edges(
+                    "pattern_discovery",
+                    self._route_after_pattern_discovery,
+                    {
+                        "wait_confirmation": END,
+                        "end": END,
+                    },
+                )
         else:
             workflow.add_edge("memory_update", END)
 

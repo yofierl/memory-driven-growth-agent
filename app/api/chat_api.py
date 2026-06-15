@@ -13,7 +13,9 @@ from app.models.conversation import Conversation, ConversationMessage
 from app.models.user import User
 from app.repositories.conversation_repo import ConversationRepository
 from app.repositories.memory_repo import MemoryRepository
+from app.repositories.method_repo import MethodRepository
 from app.repositories.pattern_repo import PatternRepository
+from app.repositories.task_repo import TaskRepository
 from app.repositories.user_repo import UserRepository
 from app.schemas.chat_schema import ChatRequest, ChatResponse, SimpleChatResponse
 from app.services.llm_service import LLMService
@@ -145,11 +147,41 @@ def get_pattern_repo(
     return PatternRepository(db.patterns)
 
 
+def get_method_repo(
+    request: Request,
+    client: Annotated[MongoClient, Depends(get_mongo_client)],
+) -> MethodRepository | None:
+    if getattr(request.app.state, "test_method_repo", None) is not None:
+        return request.app.state.test_method_repo
+    if getattr(request.app.state, "test_memory_repo", None) is not None:
+        return None
+    if getattr(request.app.state, "settings", None) is None:
+        return None
+    db = client[request.app.state.settings.mongodb_database]
+    return MethodRepository(db.methods)
+
+
+def get_task_repo(
+    request: Request,
+    client: Annotated[MongoClient, Depends(get_mongo_client)],
+) -> TaskRepository | None:
+    if getattr(request.app.state, "test_task_repo", None) is not None:
+        return request.app.state.test_task_repo
+    if getattr(request.app.state, "test_memory_repo", None) is not None:
+        return None
+    if getattr(request.app.state, "settings", None) is None:
+        return None
+    db = client[request.app.state.settings.mongodb_database]
+    return TaskRepository(db.tasks)
+
+
 def get_growth_agent_graph(
     request: Request,
     llm_service: Annotated[LLMService, Depends(get_llm_service)],
     memory_service: Annotated[MemoryService, Depends(get_memory_service)],
     pattern_repo: Annotated[PatternRepository | None, Depends(get_pattern_repo)],
+    method_repo: Annotated[MethodRepository | None, Depends(get_method_repo)],
+    task_repo: Annotated[TaskRepository | None, Depends(get_task_repo)],
 ) -> GrowthAgentGraph:
     graph = getattr(request.app.state, "growth_agent_graph", None)
     if (
@@ -157,11 +189,15 @@ def get_growth_agent_graph(
         or getattr(graph, "llm_service", None) is not llm_service
         or getattr(graph, "memory_service", None) is not memory_service
         or getattr(graph, "pattern_repo", None) is not pattern_repo
+        or getattr(graph, "method_repo", None) is not method_repo
+        or getattr(graph, "task_repo", None) is not task_repo
     ):
         graph = GrowthAgentGraph(
             llm_service=llm_service,
             memory_service=memory_service,
             pattern_repo=pattern_repo,
+            method_repo=method_repo,
+            task_repo=task_repo,
         )
         request.app.state.growth_agent_graph = graph
     return graph
@@ -212,7 +248,7 @@ async def chat(
         strategy=updated_state.response_strategy or "emotional_support",
         retrieved_memories=updated_state.retrieved_memories,
         detected_patterns=updated_state.detected_patterns,
-        generated_task=None,
+        generated_task=updated_state.generated_task,
     )
 
 

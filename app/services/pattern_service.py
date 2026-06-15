@@ -53,12 +53,13 @@ class PatternService:
                     continue
                 updated_pattern = pattern
                 if existing is not None:
-                    updated_pattern = existing.model_copy(
-                        update={
-                            **pattern.model_dump(),
-                            "pattern_id": existing.pattern_id,
-                        }
-                    )
+                    update_dict: dict[str, object] = {
+                        **pattern.model_dump(),
+                        "pattern_id": existing.pattern_id,
+                    }
+                    if existing.status in ("confirmed", "detected"):
+                        update_dict["status"] = existing.status
+                    updated_pattern = existing.model_copy(update=update_dict)
                 stored = self.pattern_repo.upsert(updated_pattern)
                 discovered_patterns.append(stored)
 

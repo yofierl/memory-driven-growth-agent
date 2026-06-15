@@ -21,4 +21,6 @@ class GrowthAgentState(BaseModel):
     memory_update_result: str | None = None
     detected_patterns: list[dict[str, Any]] = Field(default_factory=list)
     pattern_confirmation_required: bool = False
+    recommended_method: dict[str, Any] | None = None
+    generated_task: dict[str, Any] | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

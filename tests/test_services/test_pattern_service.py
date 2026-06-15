@@ -222,3 +222,51 @@ def test_discover_patterns_skips_rejected_existing_pattern() -> None:
 
     assert result == []
     assert repo.saved_patterns == []
+
+
+def test_discover_patterns_preserves_confirmed_status_on_merge() -> None:
+    repo = PatternRepoStub()
+    existing_confirmed = Pattern(
+        pattern_id="pattern-existing",
+        user_id="user-1",
+        scenario="学习",
+        trigger="任务压力",
+        emotion="焦虑",
+        behavior="刷视频回避",
+        result="进度中断",
+        frequency=4,
+        evidence_memory_ids=["m1", "m2", "m3", "m4"],
+        confidence=0.82,
+        status="confirmed",
+    )
+    repo.existing_by_signature[
+        ("user-1", "学习", "任务压力", "焦虑", "刷视频回避")
+    ] = existing_confirmed
+
+    class LLMStub:
+        def structured_json(self, *, system_prompt: str, user_prompt: str) -> dict:
+            return {
+                "patterns": [
+                    {
+                        "trigger": "任务压力",
+                        "emotion": "焦虑",
+                        "behavior": "刷视频回避",
+                        "result": "进度中断",
+                        "confidence": 0.83,
+                    }
+                ]
+            }
+
+    service = PatternService(pattern_repo=repo)
+    memories = [
+        make_memory("m1"),
+        make_memory("m2"),
+        make_memory("m3"),
+        make_memory("m4"),
+    ]
+    result = service.discover_patterns(user_id="user-1", memories=memories, llm_service=LLMStub())
+
+    assert len(result) == 1
+    assert result[0].status == "confirmed"
+    assert result[0].pattern_id == "pattern-existing"
+    assert result[0].frequency == 4

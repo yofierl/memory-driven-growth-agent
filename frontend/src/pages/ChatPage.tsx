@@ -63,18 +63,22 @@ export function ChatPage(props: ChatPageProps) {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingPatternId, setPendingPatternId] = useState<string | null>(null);
+  const [resolvedPatternIds, setResolvedPatternIds] = useState<Record<string, "confirmed" | "rejected">>({});
 
   const submitPatternFeedback = useCallback(
     async (patternId: string, status: "confirmed" | "rejected") => {
       setPendingPatternId(patternId);
+      setError(null);
       try {
         await apiClient.post(
           `/api/patterns/${patternId}/feedback`,
           { status },
           { params: { user_id: userId } }
         );
-        setPendingPatternId(null);
+        setResolvedPatternIds((prev) => ({ ...prev, [patternId]: status }));
       } catch {
+        setError("暂时无法保存反馈，请重试。");
+      } finally {
         setPendingPatternId(null);
       }
     },
@@ -189,8 +193,10 @@ export function ChatPage(props: ChatPageProps) {
                 const result = (pattern as Record<string, unknown>).result as string ?? "-";
                 const evidenceIds = (pattern as Record<string, unknown>).evidence_memory_ids as string[] ?? [];
                 const status = (pattern as Record<string, unknown>).status as string ?? "detected";
+                const resolvedStatus = resolvedPatternIds[patternId];
+                const effectiveStatus = resolvedStatus ?? status;
                 const isPending = pendingPatternId === patternId;
-                const isResolved = status === "confirmed" || status === "rejected";
+                const isResolved = effectiveStatus === "confirmed" || effectiveStatus === "rejected";
                 return (
                   <article key={patternId} className="pattern-card">
                     <dl className="pattern-details">
@@ -223,7 +229,7 @@ export function ChatPage(props: ChatPageProps) {
                       </div>
                     ) : (
                       <span className="pattern-status">
-                        {status === "confirmed" ? "已确认" : "已拒绝"}
+                        {effectiveStatus === "confirmed" ? "已确认" : "已拒绝"}
                       </span>
                     )}
                   </article>

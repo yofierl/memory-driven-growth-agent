@@ -1,20 +1,85 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useCallback, useState } from "react";
 
+import { apiClient } from "../api/client";
 import { ChatResponse, postChat } from "../services/chatService";
 
-type ChatMessage = {
+export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
 };
 
-export function ChatPage() {
-  const [userId, setUserId] = useState("demo-user");
-  const [conversationId, setConversationId] = useState<string | undefined>();
+type ChatPageProps = {
+  userId: string;
+  conversationId?: string;
+  messages: ChatMessage[];
+  lastResponse: ChatResponse | null;
+  onChangeUserId: (userId: string) => void;
+  onAppendMessage: (message: ChatMessage) => void;
+  onReplaceLastResponse: (response: ChatResponse) => void;
+};
+
+const STRATEGY_LABELS: Record<string, string> = {
+  emotional_support: "情绪支持",
+  information_follow_up: "信息追问",
+  task_review: "任务复盘",
+  safety_response: "安全回应",
+  safety_handled: "安全处理",
+  not_started: "尚未开始"
+};
+
+const RISK_LABELS: Record<string, string> = {
+  none: "无风险",
+  low: "低风险",
+  medium: "中风险",
+  high: "高风险"
+};
+
+const DIFFICULTY_LABELS: Record<string, string> = {
+  low: "低",
+  adjusted: "已调整"
+};
+
+function labelFromMap(map: Record<string, string>, value: string | undefined, fallback: string) {
+  if (!value) return fallback;
+  return map[value] ?? value;
+}
+
+function displayRiskReason(reason: string | null | undefined) {
+  if (!reason) return null;
+  return /[\u4e00-\u9fff]/.test(reason) ? reason : "系统已完成风险检查。";
+}
+
+export function ChatPage(props: ChatPageProps) {
+  const {
+    userId,
+    conversationId,
+    messages,
+    lastResponse,
+    onChangeUserId,
+    onAppendMessage,
+    onReplaceLastResponse
+  } = props;
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [lastResponse, setLastResponse] = useState<ChatResponse | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingPatternId, setPendingPatternId] = useState<string | null>(null);
+
+  const submitPatternFeedback = useCallback(
+    async (patternId: string, status: "confirmed" | "rejected") => {
+      setPendingPatternId(patternId);
+      try {
+        await apiClient.post(
+          `/api/patterns/${patternId}/feedback`,
+          { status },
+          { params: { user_id: userId } }
+        );
+        setPendingPatternId(null);
+      } catch {
+        setPendingPatternId(null);
+      }
+    },
+    [userId]
+  );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -25,21 +90,17 @@ export function ChatPage() {
     setInput("");
     setError(null);
     setIsSending(true);
-    setMessages((current) => [...current, { role: "user", content: message }]);
+    onAppendMessage({ role: "user", content: message });
     try {
       const response = await postChat({
         user_id: userId.trim() || "demo-user",
         conversation_id: conversationId,
         message
       });
-      setConversationId(response.conversation_id);
-      setLastResponse(response);
-      setMessages((current) => [
-        ...current,
-        { role: "assistant", content: response.assistant_response }
-      ]);
+      onReplaceLastResponse(response);
+      onAppendMessage({ role: "assistant", content: response.assistant_response });
     } catch {
-      setError("Request failed. Check that the backend is running on VITE_API_BASE_URL.");
+      setError("请求失败。请确认后端服务已启动，并且 VITE_API_BASE_URL 配置正确。");
     } finally {
       setIsSending(false);
     }
@@ -51,15 +112,13 @@ export function ChatPage() {
   return (
     <section className="page">
       <header className="page-header">
-        <p className="eyebrow">Conversation</p>
-        <h2>Chat</h2>
+        <p className="eyebrow">成长对话</p>
+        <h2>对话</h2>
       </header>
       <div className="disclaimer-panel">
         <p>
-          This product supports self-growth reflection and daily planning. It is
-          not medical diagnosis, psychotherapy, crisis intervention, or emergency
-          support. If you are in immediate danger, contact local emergency
-          services or a trusted nearby person now.
+          本产品用于自我成长反思和日常行动规划，不提供医学诊断、心理治疗、危机干预或紧急救助。
+          如果你正处于现实危险中，请立即联系当地紧急服务或身边可信任的人。
         </p>
       </div>
 
@@ -68,7 +127,7 @@ export function ChatPage() {
           <div className="chat-thread" aria-live="polite">
             {messages.length === 0 ? (
               <p className="chat-placeholder">
-                Send a demo message to run the full LangGraph workflow.
+                发送一条演示消息，运行完整的 LangGraph 工作流。
               </p>
             ) : (
               messages.map((message, index) => (
@@ -81,11 +140,11 @@ export function ChatPage() {
 
           <form className="chat-form" onSubmit={handleSubmit}>
             <label>
-              User
-              <input value={userId} onChange={(event) => setUserId(event.target.value)} />
+              用户
+              <input value={userId} onChange={(event) => onChangeUserId(event.target.value)} />
             </label>
             <label className="chat-input">
-              Message
+              消息
               <textarea
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
@@ -93,7 +152,7 @@ export function ChatPage() {
               />
             </label>
             <button className="primary-button" type="submit" disabled={isSending || !input.trim()}>
-              {isSending ? "Sending" : "Send"}
+              {isSending ? "发送中" : "发送"}
             </button>
           </form>
           {error ? <p className="chat-error">{error}</p> : null}
@@ -101,25 +160,84 @@ export function ChatPage() {
 
         <aside className="chat-side-panel">
           <div>
-            <p className="panel-label">Strategy</p>
-            <strong>{lastResponse?.strategy ?? "not started"}</strong>
+            <p className="panel-label">回复策略</p>
+            <strong>
+              {labelFromMap(STRATEGY_LABELS, lastResponse?.strategy, "尚未开始")}
+            </strong>
           </div>
           <div>
-            <p className="panel-label">Risk</p>
-            <span className={`risk-badge ${riskClass}`}>{riskLevel}</span>
-            {lastResponse?.risk_reason ? <p className="risk-reason">{lastResponse.risk_reason}</p> : null}
+            <p className="panel-label">风险等级</p>
+            <span className={`risk-badge ${riskClass}`}>
+              {labelFromMap(RISK_LABELS, riskLevel, "无风险")}
+            </span>
+            {displayRiskReason(lastResponse?.risk_reason) ? (
+              <p className="risk-reason">{displayRiskReason(lastResponse?.risk_reason)}</p>
+            ) : null}
           </div>
           <div>
-            <p className="panel-label">Retrieved Memories</p>
+            <p className="panel-label">召回记忆</p>
             <strong>{lastResponse?.retrieved_memories.length ?? 0}</strong>
           </div>
+          {lastResponse?.detected_patterns && lastResponse.detected_patterns.length > 0 ? (
+            <div className="detected-patterns">
+              <p className="panel-label">候选模式</p>
+              {lastResponse.detected_patterns.map((pattern) => {
+                const patternId = (pattern as Record<string, unknown>).pattern_id as string ?? "";
+                const emotion = (pattern as Record<string, unknown>).emotion as string ?? "-";
+                const trigger = (pattern as Record<string, unknown>).trigger as string ?? "-";
+                const behavior = (pattern as Record<string, unknown>).behavior as string ?? "-";
+                const result = (pattern as Record<string, unknown>).result as string ?? "-";
+                const evidenceIds = (pattern as Record<string, unknown>).evidence_memory_ids as string[] ?? [];
+                const status = (pattern as Record<string, unknown>).status as string ?? "detected";
+                const isPending = pendingPatternId === patternId;
+                const isResolved = status === "confirmed" || status === "rejected";
+                return (
+                  <article key={patternId} className="pattern-card">
+                    <dl className="pattern-details">
+                      <div><dt>触发</dt><dd>{trigger}</dd></div>
+                      <div><dt>情绪</dt><dd>{emotion}</dd></div>
+                      <div><dt>行为</dt><dd>{behavior}</dd></div>
+                      <div><dt>结果</dt><dd>{result}</dd></div>
+                    </dl>
+                    <div className="pattern-evidence">
+                      <span>证据记忆: {evidenceIds.length} 条</span>
+                    </div>
+                    {!isResolved ? (
+                      <div className="pattern-actions">
+                        <button
+                          type="button"
+                          className="primary-button"
+                          disabled={isPending}
+                          onClick={() => { void submitPatternFeedback(patternId, "confirmed"); }}
+                        >
+                          确认
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          disabled={isPending}
+                          onClick={() => { void submitPatternFeedback(patternId, "rejected"); }}
+                        >
+                          拒绝
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="pattern-status">
+                        {status === "confirmed" ? "已确认" : "已拒绝"}
+                      </span>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          ) : null}
           {lastResponse?.generated_task ? (
             <div className="generated-task">
-              <p className="panel-label">Generated Task</p>
+              <p className="panel-label">生成任务</p>
               <strong>{lastResponse.generated_task.task_content}</strong>
               <span>
-                {lastResponse.generated_task.difficulty ?? "low"} ·{" "}
-                {lastResponse.generated_task.duration_minutes ?? 15} min
+                难度：{labelFromMap(DIFFICULTY_LABELS, lastResponse.generated_task.difficulty, "低")} ·{" "}
+                时长：{lastResponse.generated_task.duration_minutes ?? 15} 分钟
               </span>
             </div>
           ) : null}

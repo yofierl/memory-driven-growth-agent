@@ -16,6 +16,7 @@ type ChatPageProps = {
   onChangeUserId: (userId: string) => void;
   onAppendMessage: (message: ChatMessage) => void;
   onReplaceLastResponse: (response: ChatResponse) => void;
+  onResetChat: () => void;
 };
 
 const STRATEGY_LABELS: Record<string, string> = {
@@ -57,7 +58,8 @@ export function ChatPage(props: ChatPageProps) {
     lastResponse,
     onChangeUserId,
     onAppendMessage,
-    onReplaceLastResponse
+    onReplaceLastResponse,
+    onResetChat
   } = props;
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -116,8 +118,18 @@ export function ChatPage(props: ChatPageProps) {
   return (
     <section className="page">
       <header className="page-header">
-        <p className="eyebrow">成长对话</p>
-        <h2>对话</h2>
+        <div>
+          <p className="eyebrow">成长对话</p>
+          <h2>对话</h2>
+        </div>
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={onResetChat}
+          disabled={isSending}
+        >
+          新对话
+        </button>
       </header>
       <div className="disclaimer-panel">
         <p>

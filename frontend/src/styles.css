@@ -92,6 +92,10 @@ a {
 }
 
 .page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
   border-bottom: 1px solid #d7d1c4;
   margin-bottom: 24px;
   padding-bottom: 18px;

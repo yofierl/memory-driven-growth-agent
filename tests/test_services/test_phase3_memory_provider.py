@@ -129,3 +129,15 @@ def test_mongo_milvus_provider_filters_deleted_memories_from_vector_results() ->
 
     assert [memory.memory_id for memory in results] == ["memory-active"]
     assert vector_service.deleted_embedding_ids == ["embedding-deleted"]
+
+
+def test_mongo_milvus_provider_deletes_old_embedding_before_update_upsert() -> None:
+    collection = FakeCollection()
+    vector_service = FakeVectorService()
+    provider = MongoMilvusMemoryProvider(collection, vector_service)
+    provider.add_memory(make_memory("memory-active", "embedding-active"))
+
+    provider.update_memory("memory-active", {"behavior": "开始最小任务"})
+
+    assert vector_service.deleted_embedding_ids == ["embedding-active"]
+    assert vector_service.upserted[-1].memory_id == "memory-active"

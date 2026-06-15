@@ -166,6 +166,10 @@ def test_growth_agent_graph_runs_pattern_discovery_after_memory_update() -> None
     assert len(result.detected_patterns) == 1
     assert len(result.detected_patterns[0]["evidence_memory_ids"]) >= 3
     assert result.pattern_confirmation_required is True
+    assert result.recommended_method is None
+    assert result.assistant_response is not None
+    assert "确认" in result.assistant_response
+    assert "拒绝" in result.assistant_response
     assert memory_service.list_calls == [
         {"user_id": "user-1", "filters": {"type": "emotion_event"}}
     ]

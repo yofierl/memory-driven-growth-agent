@@ -92,3 +92,28 @@ def test_memory_service_exposes_stable_search_and_delete_interface() -> None:
     assert [memory.memory_id for memory in before_delete] == ["memory-1", "memory-2"]
     assert [memory.memory_id for memory in after_delete] == ["memory-2"]
     assert provider.search_calls[0]["top_k"] == 3
+
+
+def test_memory_service_merges_synonym_event_chains() -> None:
+    provider = FakeMemoryProvider()
+    service = MemoryService(provider=provider)
+
+    service.add_memory(
+        make_memory(
+            "memory-1",
+            "第一次拖延",
+            behavior="刷视频",
+            trigger="任务压力",
+        ).model_copy(update={"emotion": "焦虑"})
+    )
+    service.add_memory(
+        make_memory(
+            "memory-2",
+            "第二次拖延",
+            behavior="看短视频",
+            trigger="任务压力",
+        ).model_copy(update={"emotion": "慌"})
+    )
+
+    assert set(provider.memories) == {"memory-1"}
+    assert provider.memories["memory-1"].frequency == 2

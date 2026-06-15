@@ -120,6 +120,146 @@ a {
   color: #485249;
 }
 
+.disclaimer-panel {
+  border: 1px solid #b8c1ae;
+  background: #f7f4ee;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+}
+
+.disclaimer-panel p {
+  margin: 0;
+  color: #3f4a40;
+  line-height: 1.5;
+}
+
+.chat-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 20px;
+}
+
+.chat-main,
+.chat-side-panel {
+  border: 1px solid #d7d1c4;
+  background: #fbfaf6;
+}
+
+.chat-thread {
+  display: grid;
+  min-height: 360px;
+  align-content: start;
+  gap: 12px;
+  padding: 18px;
+}
+
+.chat-placeholder {
+  margin: 0;
+  color: #667065;
+}
+
+.chat-message {
+  max-width: 78%;
+  padding: 12px 14px;
+}
+
+.chat-message p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.chat-message.user {
+  justify-self: end;
+  background: #1f3328;
+  color: #f7f4ee;
+}
+
+.chat-message.assistant {
+  justify-self: start;
+  background: #f0eadf;
+  color: #17201a;
+}
+
+.chat-form {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  border-top: 1px solid #d7d1c4;
+  padding: 14px;
+}
+
+.chat-form label {
+  display: grid;
+  gap: 6px;
+  color: #6d755f;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.chat-form input,
+.chat-form textarea {
+  width: 100%;
+  border: 1px solid #c9c2b5;
+  background: #fffefb;
+  color: #17201a;
+  font: inherit;
+  padding: 10px;
+  resize: vertical;
+}
+
+.chat-error {
+  margin: 0;
+  border-top: 1px solid #d7d1c4;
+  color: #8a2d22;
+  padding: 12px 14px;
+}
+
+.chat-side-panel {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  padding: 18px;
+}
+
+.panel-label {
+  margin: 0 0 6px;
+  color: #6d755f;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.risk-badge {
+  display: inline-flex;
+  border: 1px solid #bdc9b4;
+  background: #f7f4ee;
+  color: #1f3328;
+  padding: 6px 10px;
+  text-transform: uppercase;
+}
+
+.risk-badge.is-alert {
+  border-color: #8a2d22;
+  background: #f4e4df;
+  color: #8a2d22;
+}
+
+.risk-reason {
+  margin: 8px 0 0;
+  color: #485249;
+}
+
+.generated-task {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid #d7d1c4;
+  padding-top: 16px;
+}
+
+.generated-task span {
+  color: #485249;
+}
+
 .pattern-toolbar {
   display: flex;
   align-items: center;
@@ -328,5 +468,14 @@ a {
 
   .workspace {
     padding: 20px;
+  }
+
+  .chat-layout,
+  .chat-form {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-message {
+    max-width: 100%;
   }
 }

@@ -31,6 +31,18 @@ class FakeMemoryService:
         return memory
 
 
+class FakeTaskService:
+    def list_active_tasks(self, user_id: str):
+        return [
+            {
+                "task_id": "task-1",
+                "user_id": user_id,
+                "task_content": "Start for 15 minutes",
+                "status": "pending",
+            }
+        ]
+
+
 def test_memory_retrieval_node_loads_top3_memories_through_memory_service() -> None:
     memory_service = FakeMemoryService()
     node = MemoryRetrievalNode(memory_service=memory_service)
@@ -45,12 +57,28 @@ def test_memory_retrieval_node_loads_top3_memories_through_memory_service() -> N
     assert memory_service.search_calls == [
         {
             "query": "我又学不进去了",
-            "filters": {"user_id": "user-1", "type": "emotion_event"},
+            "filters": {"user_id": "user-1"},
             "top_k": 3,
         }
     ]
     assert result.retrieved_memories[0]["memory_id"] == "memory-1"
     assert result.retrieved_memories[0]["behavior"] == "刷视频回避"
+
+
+def test_memory_retrieval_node_loads_active_tasks_when_task_service_exists() -> None:
+    node = MemoryRetrievalNode(
+        memory_service=FakeMemoryService(),
+        task_service=FakeTaskService(),
+    )
+    state = GrowthAgentState(
+        user_id="user-1",
+        conversation_id="conv-1",
+        user_input="again stuck",
+    )
+
+    result = node.run(state)
+
+    assert result.active_tasks[0]["task_id"] == "task-1"
 
 
 def test_memory_update_node_persists_extracted_memories_through_memory_service() -> None:

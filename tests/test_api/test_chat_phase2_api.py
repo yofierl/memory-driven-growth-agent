@@ -33,6 +33,8 @@ class Phase2LLMService:
                 "user_prompt": user_prompt,
             }
         )
+        if "risk_detection" in system_prompt:
+            return {"risk_level": "none", "risk_reason": "test ordinary input"}
         if (
             "gap_detection" in system_prompt
             or "missing_fields" in system_prompt

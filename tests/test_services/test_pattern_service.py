@@ -142,7 +142,7 @@ def test_discover_patterns_persists_detected_pattern_with_evidence() -> None:
     assert repo.saved_patterns[0].pattern_id == result[0].pattern_id
 
 
-def test_discover_patterns_groups_by_chain_without_similarity_algorithm() -> None:
+def test_discover_patterns_groups_by_trigger_emotion_behavior_chain() -> None:
     repo = PatternRepoStub()
     service = PatternService(pattern_repo=repo)
     llm_service = PatternLLMStub({"patterns": []})
@@ -159,8 +159,47 @@ def test_discover_patterns_groups_by_chain_without_similarity_algorithm() -> Non
     )
 
     prompt = llm_service.calls[0]["user_prompt"]
-    assert "m1" in prompt and "m2" in prompt and "m3" in prompt
-    assert "m4" not in prompt
+    assert all(memory_id in prompt for memory_id in ("m1", "m2", "m3", "m4"))
+
+
+def test_normalization_groups_synonyms_for_pattern_evidence() -> None:
+    repo = PatternRepoStub()
+    service = PatternService(pattern_repo=repo)
+    llm_service = PatternLLMStub(
+        {
+            "patterns": [
+                {
+                    "scenario": "学习",
+                    "trigger": "任务压力",
+                    "emotion": "焦虑",
+                    "behavior": "拖延回避",
+                    "result": "进度中断",
+                    "confidence": 0.86,
+                }
+            ]
+        }
+    )
+
+    memories = [
+        make_memory("m1").model_copy(
+            update={"emotion": "焦虑", "trigger": "任务压力", "behavior": "刷视频"}
+        ),
+        make_memory("m2").model_copy(
+            update={"emotion": "慌", "trigger": "任务压力", "behavior": "看短视频"}
+        ),
+        make_memory("m3").model_copy(
+            update={"emotion": "压力很大", "trigger": "任务压力", "behavior": "刷B站"}
+        ),
+    ]
+
+    result = service.discover_patterns(
+        user_id="user-1",
+        memories=memories,
+        llm_service=llm_service,
+    )
+
+    assert len(result) == 1
+    assert result[0].evidence_memory_ids == ["m1", "m2", "m3"]
 
 
 def test_discover_patterns_reuses_existing_pattern_id() -> None:
@@ -239,9 +278,9 @@ def test_discover_patterns_preserves_confirmed_status_on_merge() -> None:
         confidence=0.82,
         status="confirmed",
     )
-    repo.existing_by_signature[
-        ("user-1", "学习", "任务压力", "焦虑", "刷视频回避")
-    ] = existing_confirmed
+    repo.existing_by_signature[("user-1", "学习", "任务压力", "焦虑", "刷视频回避")] = (
+        existing_confirmed
+    )
 
     class LLMStub:
         def structured_json(self, *, system_prompt: str, user_prompt: str) -> dict:

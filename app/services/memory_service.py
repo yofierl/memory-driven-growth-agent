@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from app.models.memory import Memory
+from app.services.normalization import normalize_behavior, normalize_emotion, normalize_trigger
 
 
 class MemoryService:
@@ -58,6 +59,15 @@ class MemoryService:
             right_value = getattr(right, field)
             if not left_value or not right_value:
                 return False
-            if str(left_value).strip() != str(right_value).strip():
+            if field == "emotion":
+                left_value = normalize_emotion(str(left_value))
+                right_value = normalize_emotion(str(right_value))
+            elif field == "trigger":
+                left_value = normalize_trigger(str(left_value))
+                right_value = normalize_trigger(str(right_value))
+            else:
+                left_value = normalize_behavior(str(left_value))
+                right_value = normalize_behavior(str(right_value))
+            if left_value != right_value:
                 return False
         return True

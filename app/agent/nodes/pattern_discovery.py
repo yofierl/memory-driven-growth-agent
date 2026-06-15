@@ -36,6 +36,11 @@ class PatternDiscoveryNode:
         )
         state.detected_patterns = [pattern.model_dump(mode="json") for pattern in patterns]
         state.pattern_confirmation_required = len(state.detected_patterns) > 0
+        if state.pattern_confirmation_required:
+            prompt = "我注意到一个可能的重复模式。你可以确认或拒绝这个模式是否准确。"
+            state.assistant_response = (
+                f"{state.assistant_response}\n\n{prompt}" if state.assistant_response else prompt
+            )
         return state
 
     def _llm_adapter(self):

@@ -24,7 +24,13 @@ class Phase5GraphLLMStub:
             return {"new_memories": []}
         if "patterns" in system_prompt:
             return {"patterns": []}
-        if "intervention_routing" in system_prompt or "method_id=" in user_prompt and "patterns" not in system_prompt and "patterns" not in user_prompt and "missing_fields" not in system_prompt:
+        if (
+            "intervention_routing" in system_prompt
+            or "method_id=" in user_prompt
+            and "patterns" not in system_prompt
+            and "patterns" not in user_prompt
+            and "missing_fields" not in system_prompt
+        ):
             return {
                 "method_id": "method_15_min_start",
                 "method_name": "15 分钟启动法",
@@ -89,7 +95,11 @@ class Phase5TaskRepoStub:
         return task
 
     def get_latest_failed_task(self, user_id: str, method_id: str):
-        if self.latest_failed is not None and self.latest_failed.user_id == user_id and self.latest_failed.method_id == method_id:
+        if (
+            self.latest_failed is not None
+            and self.latest_failed.user_id == user_id
+            and self.latest_failed.method_id == method_id
+        ):
             return self.latest_failed
         return None
 

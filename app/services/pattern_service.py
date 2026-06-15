@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from app.models.memory import Memory
 from app.models.pattern import Pattern
+from app.services.normalization import normalize_behavior, normalize_emotion, normalize_trigger
 
 
 class PatternService:
@@ -67,18 +68,18 @@ class PatternService:
 
     @staticmethod
     def _group_candidate_memories(memories: list[Memory]) -> list[list[Memory]]:
-        buckets: dict[tuple[str | None, str, str, str], list[Memory]] = defaultdict(list)
+        buckets: dict[tuple[str, str, str], list[Memory]] = defaultdict(list)
         for memory in memories:
             if memory.type != "emotion_event":
                 continue
             if not memory.trigger or not memory.emotion or not memory.behavior:
                 continue
-            key = (
-                PatternService._normalize(memory.scenario),
-                PatternService._normalize(memory.trigger),
-                PatternService._normalize(memory.emotion),
-                PatternService._normalize(memory.behavior),
-            )
+            trigger = normalize_trigger(memory.trigger)
+            emotion = normalize_emotion(memory.emotion)
+            behavior = normalize_behavior(memory.behavior)
+            if not trigger or not emotion or not behavior:
+                continue
+            key = (trigger, emotion, behavior)
             buckets[key].append(memory)
         return [group for group in buckets.values() if len({item.memory_id for item in group}) >= 3]
 

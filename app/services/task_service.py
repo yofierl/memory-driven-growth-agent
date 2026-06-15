@@ -33,7 +33,8 @@ class TaskService:
         task = Task(
             task_id=str(uuid4()),
             user_id=user_id,
-            task_content=result.get("task_content") or self._default_task_content(recommended_method),
+            task_content=result.get("task_content")
+            or self._default_task_content(recommended_method),
             method_id=method_id,
             pattern_id=recommended_method.get("pattern_id"),
             difficulty=difficulty,
@@ -44,6 +45,11 @@ class TaskService:
 
     def list_tasks(self, *, user_id: str) -> list[Task]:
         return self.task_repo.list_by_user_id(user_id=user_id)
+
+    def list_active_tasks(self, user_id: str) -> list[Task]:
+        if not hasattr(self.task_repo, "list_by_user_id"):
+            return []
+        return self.task_repo.list_by_user_id(user_id=user_id, statuses=["pending"])
 
     def update_task_status(self, *, task_id: str, status: str, feedback: str | None = None) -> Task:
         return self.task_repo.update_status(task_id, status=status, feedback=feedback)

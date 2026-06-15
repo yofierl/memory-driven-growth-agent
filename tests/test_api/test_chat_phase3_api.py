@@ -56,6 +56,8 @@ class Phase3LLMService:
         self.structured_json_calls.append(
             {"system_prompt": system_prompt, "user_prompt": user_prompt}
         )
+        if "risk_detection" in system_prompt:
+            return {"risk_level": "none", "risk_reason": "test ordinary input"}
         if "gap_detection" in system_prompt or "missing_fields" in system_prompt:
             return {"detected_emotion": "焦虑", "missing_fields": []}
         if "response_planner" in system_prompt or "response_strategy" in system_prompt:

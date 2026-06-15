@@ -21,6 +21,7 @@ class TaskGenerationNode:
         if task is None:
             return state
         state.generated_task = task.model_dump(mode="json")
+        state.active_tasks.append(state.generated_task)
         return state
 
     def _llm_adapter(self):

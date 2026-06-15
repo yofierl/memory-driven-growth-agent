@@ -1,7 +1,6 @@
 from fastapi.testclient import TestClient
 
 from app.main import create_app
-from app.models.pattern import Pattern
 from app.models.task import Task
 
 

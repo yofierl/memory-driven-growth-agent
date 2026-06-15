@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/api/client.ts","./src/pages/chatpage.tsx","./src/pages/memorypage.tsx","./src/pages/patternpage.tsx","./src/pages/taskpage.tsx"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/api/client.ts","./src/pages/chatpage.tsx","./src/pages/memorypage.tsx","./src/pages/patternpage.tsx","./src/pages/taskpage.tsx","./src/services/chatservice.ts"],"version":"5.9.3"}

@@ -17,7 +17,7 @@ class MemoryRepository:
         return memories
 
     def list_by_user_id(self, user_id: str, memory_type: str | None = None) -> list[Memory]:
-        query: dict[str, object] = {"user_id": user_id}
+        query: dict[str, object] = {"user_id": user_id, "is_deleted": {"$ne": True}}
         if memory_type is not None:
             query["type"] = memory_type
         cursor = self.collection.find(query).sort("created_at", -1)
@@ -26,3 +26,10 @@ class MemoryRepository:
             document.pop("_id", None)
             results.append(Memory.model_validate(document))
         return results
+
+    def get_by_id(self, memory_id: str) -> Memory | None:
+        document = self.collection.find_one({"memory_id": memory_id, "is_deleted": {"$ne": True}})
+        if document is None:
+            return None
+        document.pop("_id", None)
+        return Memory.model_validate(document)

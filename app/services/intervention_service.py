@@ -11,17 +11,24 @@ class InterventionService:
         self.task_repo = task_repo
 
     def route_method(self, *, user_id: str, llm_service) -> dict | None:
-        confirmed_patterns = self.pattern_repo.list_by_user_id(user_id=user_id, statuses=["confirmed"])
+        confirmed_patterns = self.pattern_repo.list_by_user_id(
+            user_id=user_id, statuses=["confirmed"]
+        )
         if not confirmed_patterns:
             return None
-        methods = [Method.model_validate(m) if not isinstance(m, Method) else m for m in self.method_repo.list_all()]
+        methods = [
+            Method.model_validate(m) if not isinstance(m, Method) else m
+            for m in self.method_repo.list_all()
+        ]
         if not methods:
             return None
 
         latest_pattern = confirmed_patterns[0]
         method_lookup = {method.method_id: method for method in methods}
         fallback_method = self._fallback_method(latest_pattern=latest_pattern, methods=methods)
-        latest_failed_task = self.task_repo.get_latest_failed_task(user_id, fallback_method.method_id)
+        latest_failed_task = self.task_repo.get_latest_failed_task(
+            user_id, fallback_method.method_id
+        )
 
         result = llm_service.structured_json(
             system_prompt=self._build_system_prompt(),
@@ -73,7 +80,8 @@ class InterventionService:
         if latest_failed_task is not None:
             failed_text = (
                 f"最近失败任务: task_id={latest_failed_task.task_id}; "
-                f"content={latest_failed_task.task_content}; feedback={latest_failed_task.feedback or '无'}"
+                f"content={latest_failed_task.task_content}; "
+                f"feedback={latest_failed_task.feedback or '无'}"
             )
         return (
             f"confirmed pattern: trigger={pattern.trigger}; emotion={pattern.emotion}; "
@@ -87,6 +95,8 @@ class InterventionService:
         emotion = latest_pattern.emotion
         behavior = latest_pattern.behavior
         result = latest_pattern.result
+        if any(value in (None, "无") for value in (emotion, behavior, result)):
+            return methods[0]
         for method in methods:
             tags = " ".join(method.target_problem)
             if any(keyword in tags for keyword in (behavior, emotion, result)):

@@ -62,6 +62,12 @@ class MongoMilvusMemoryProvider:
         return [self._document_to_memory(doc) for doc in self.memory_collection.find(query)]
 
     def update_memory(self, memory_id: str, patch: dict) -> Memory:
+        old_document = self.memory_collection.find_one(
+            {"memory_id": memory_id, "is_deleted": {"$ne": True}}
+        )
+        if old_document is None:
+            raise KeyError(memory_id)
+        old_embedding_id = old_document.get("embedding_id")
         patch = {key: value for key, value in patch.items() if value is not None}
         patch["updated_at"] = datetime.now(UTC)
         self.memory_collection.update_one(
@@ -74,6 +80,8 @@ class MongoMilvusMemoryProvider:
         if document is None:
             raise KeyError(memory_id)
         memory = self._document_to_memory(document)
+        if old_embedding_id:
+            self.vector_service.delete_embedding(old_embedding_id)
         if memory.embedding_id:
             self.vector_service.upsert_embedding(memory)
         return memory
